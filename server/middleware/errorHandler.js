@@ -11,6 +11,10 @@ export const errorHandler = (err, req, res, next) => {
       errors: err.issues.map((i) => ({ field: i.path.join("."), message: i.message })),
     });
   }
+  if (err.name === "CastError") {
+    return res.status(400).json({ message: "Invalid ID" });
+  }
+
   if (err.code === 11000) {
     return res.status(409).json({ message: "Duplicate value" });
   }

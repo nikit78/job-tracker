@@ -76,6 +76,8 @@ test("application CRUD is owner-scoped", async () => {
       role: "Integration Test Engineer",
       status: "applied",
       location: "Remote",
+      appliedDate: "2025-05-15T00:00:00.000Z",
+      interviewDate: new Date(Date.now() + 86400000).toISOString(),
     }),
   });
   assert.equal(created.response.status, 201);
@@ -136,6 +138,23 @@ test("application CRUD is owner-scoped", async () => {
     token: firstRegistration.body.token,
   });
   assert.equal(missingNote.response.status, 404);
+
+  const stats = await request("/applications/stats", {
+    token: firstRegistration.body.token,
+  });
+  assert.equal(stats.response.status, 200);
+  assert.deepEqual(stats.body.byStatus, [{ _id: "interview", count: 1 }]);
+  assert.deepEqual(stats.body.byMonth, [{ _id: "2025-05", count: 1 }]);
+  assert.equal(stats.body.upcoming.length, 1);
+  assert.equal(stats.body.upcoming[0]._id, applicationId);
+
+  const otherUserStats = await request("/applications/stats", {
+    token: secondRegistration.body.token,
+  });
+  assert.equal(otherUserStats.response.status, 200);
+  assert.deepEqual(otherUserStats.body.byStatus, []);
+  assert.deepEqual(otherUserStats.body.byMonth, []);
+  assert.deepEqual(otherUserStats.body.upcoming, []);
 
   const deleted = await request(`/applications/${applicationId}`, {
     method: "DELETE",

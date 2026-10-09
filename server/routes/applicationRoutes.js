@@ -8,12 +8,14 @@ import {
   deleteApplication,
   addNote,
   deleteNote,
+  getStats,
 } from "../controllers/applicationController.js";
 
 const router = Router();
 router.use(protect);
 
 router.route("/").get(listApplications).post(createApplication);
+router.get("/stats", getStats);
 router.route("/:id/notes").post(addNote);
 router.route("/:id/notes/:noteId").delete(deleteNote);
 router

@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import { z } from "zod";
 import Application from "../models/Application.js";
 
@@ -104,4 +105,30 @@ export const deleteNote = async (req, res) => {
   note.deleteOne();
   await app.save();
   res.json({ message: "Note deleted" });
+};
+
+export const getStats = async (req, res) => {
+  const userId = new mongoose.Types.ObjectId(req.user._id);
+  const [byStatus, byMonth, upcoming] = await Promise.all([
+    Application.aggregate([
+      { $match: { user: userId } },
+      { $group: { _id: "$status", count: { $sum: 1 } } },
+      { $sort: { _id: 1 } },
+    ]),
+    Application.aggregate([
+      { $match: { user: userId } },
+      {
+        $group: {
+          _id: { $dateToString: { format: "%Y-%m", date: "$appliedDate" } },
+          count: { $sum: 1 },
+        },
+      },
+      { $sort: { _id: 1 } },
+    ]),
+    Application.find({ user: userId, interviewDate: { $gte: new Date() } })
+      .sort({ interviewDate: 1 })
+      .limit(5),
+  ]);
+
+  res.json({ byStatus, byMonth, upcoming });
 };

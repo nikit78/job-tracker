@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import { z } from "zod";
 import Application from "../models/Application.js";
 
@@ -14,6 +15,9 @@ const createSchema = z.object({
   interviewDate: z.coerce.date().optional(),
 });
 const updateSchema = createSchema.partial();
+const noteSchema = z.object({
+  text: z.string().trim().min(1).max(2000),
+});
 
 const listSchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
@@ -79,4 +83,52 @@ export const deleteApplication = async (req, res) => {
   const app = await Application.findOneAndDelete({ _id: req.params.id, user: req.user._id });
   if (!app) return res.status(404).json({ message: "Application not found" });
   res.json({ message: "Deleted" });
+};
+
+export const addNote = async (req, res) => {
+  const { text } = noteSchema.parse(req.body);
+  const app = await Application.findOne({ _id: req.params.id, user: req.user._id });
+  if (!app) return res.status(404).json({ message: "Application not found" });
+
+  app.notes.push({ text });
+  await app.save();
+  res.status(201).json(app.notes.at(-1));
+};
+
+export const deleteNote = async (req, res) => {
+  const app = await Application.findOne({ _id: req.params.id, user: req.user._id });
+  if (!app) return res.status(404).json({ message: "Application not found" });
+
+  const note = app.notes.id(req.params.noteId);
+  if (!note) return res.status(404).json({ message: "Note not found" });
+
+  note.deleteOne();
+  await app.save();
+  res.json({ message: "Note deleted" });
+};
+
+export const getStats = async (req, res) => {
+  const userId = new mongoose.Types.ObjectId(req.user._id);
+  const [byStatus, byMonth, upcoming] = await Promise.all([
+    Application.aggregate([
+      { $match: { user: userId } },
+      { $group: { _id: "$status", count: { $sum: 1 } } },
+      { $sort: { _id: 1 } },
+    ]),
+    Application.aggregate([
+      { $match: { user: userId } },
+      {
+        $group: {
+          _id: { $dateToString: { format: "%Y-%m", date: "$appliedDate" } },
+          count: { $sum: 1 },
+        },
+      },
+      { $sort: { _id: 1 } },
+    ]),
+    Application.find({ user: userId, interviewDate: { $gte: new Date() } })
+      .sort({ interviewDate: 1 })
+      .limit(5),
+  ]);
+
+  res.json({ byStatus, byMonth, upcoming });
 };

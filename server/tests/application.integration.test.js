@@ -99,10 +99,43 @@ test("application CRUD is owner-scoped", async () => {
   assert.equal(updated.response.status, 200);
   assert.equal(updated.body.status, "interview");
 
+  const addedNote = await request(`/applications/${applicationId}/notes`, {
+    method: "POST",
+    token: firstRegistration.body.token,
+    body: JSON.stringify({ text: "Recruiter screen scheduled" }),
+  });
+  assert.equal(addedNote.response.status, 201);
+  assert.equal(addedNote.body.text, "Recruiter screen scheduled");
+
+  const invalidNote = await request(`/applications/${applicationId}/notes`, {
+    method: "POST",
+    token: firstRegistration.body.token,
+    body: JSON.stringify({ text: "   " }),
+  });
+  assert.equal(invalidNote.response.status, 400);
+
   const inaccessible = await request(`/applications/${applicationId}`, {
     token: secondRegistration.body.token,
   });
   assert.equal(inaccessible.response.status, 404);
+
+  const inaccessibleNoteDelete = await request(`/applications/${applicationId}/notes/${addedNote.body._id}`, {
+    method: "DELETE",
+    token: secondRegistration.body.token,
+  });
+  assert.equal(inaccessibleNoteDelete.response.status, 404);
+
+  const deletedNote = await request(`/applications/${applicationId}/notes/${addedNote.body._id}`, {
+    method: "DELETE",
+    token: firstRegistration.body.token,
+  });
+  assert.equal(deletedNote.response.status, 200);
+
+  const missingNote = await request(`/applications/${applicationId}/notes/${addedNote.body._id}`, {
+    method: "DELETE",
+    token: firstRegistration.body.token,
+  });
+  assert.equal(missingNote.response.status, 404);
 
   const deleted = await request(`/applications/${applicationId}`, {
     method: "DELETE",

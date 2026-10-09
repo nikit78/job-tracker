@@ -6,12 +6,16 @@ import {
   getApplication,
   updateApplication,
   deleteApplication,
+  addNote,
+  deleteNote,
 } from "../controllers/applicationController.js";
 
 const router = Router();
 router.use(protect);
 
 router.route("/").get(listApplications).post(createApplication);
+router.route("/:id/notes").post(addNote);
+router.route("/:id/notes/:noteId").delete(deleteNote);
 router
   .route("/:id")
   .get(getApplication)
